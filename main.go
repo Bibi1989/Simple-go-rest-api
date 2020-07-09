@@ -9,43 +9,12 @@ import (
 
 	"github.com/bibi1989/restfulapi/connectmongo"
 	connectionmongo "github.com/bibi1989/restfulapi/connectmongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
-
-// Connect (Func)
-// func Connect() *mongo.Collection {
-// 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-
-// 	// Connect to MongoDB
-// 	client, err := mongo.Connect(context.TODO(), clientOptions)
-
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	// Check the connection
-// 	err = client.Ping(context.TODO(), nil)
-
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-
-// 	fmt.Println("Connected to MongoDB!")
-
-// 	collection := client.Database("go_book").Collection("books")
-
-// 	err = client.Disconnect(context.TODO())
-
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	// fmt.Println("Connection to MongoDB closed.")
-
-// 	return collection
-// }
 
 // NewBook Struct (Model)
 type NewBook struct {
@@ -82,38 +51,61 @@ var books []Book
 func getBooks(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	collection := connectmongo.Connect()
-	// findOptions := options.Find()
-	// findOptions.SetLimit(2)
-	// ctx, _ = context.WithTimeout(context.Background(), 30*time.Second)
-	col, err := collection.Find(context.Background(), bson.D{{}})
+	findOptions := options.Find()
+	findOptions.SetLimit(10)
 
-	var results []primitive.M
+	col, err := collection.Find(context.Background(), bson.D{{}}, findOptions)
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	// var results []primitive.M
+	var books []NewBook
 	for col.Next(context.Background()) {
-		var result bson.M
-		e := col.Decode(&result)
+		var book NewBook
+		// var result bson.M
+		e := col.Decode(&book)
 		if e != nil {
 			log.Fatal(e)
 		}
-		// fmt.Println("cur..>", cur, "result", reflect.TypeOf(result), reflect.TypeOf(result["_id"]))
-		results = append(results, result)
+		// fmt.Println("col..>", col, "book", reflect.TypeOf(book))
+		books = append(books, book)
 
 	}
 
-	fmt.Println(col, err)
-	json.NewEncoder(w).Encode(results)
+	json.NewEncoder(w).Encode(books)
 }
 
 // get one book func
 func getBook(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	// params := mux.Vars(r)
+
+	var book NewBook
 	params := mux.Vars(r)
 
-	for _, item := range books {
-		if item.ID == params["id"] {
-			json.NewEncoder(w).Encode(item)
-			return
-		}
+	id, _ := primitive.ObjectIDFromHex(params["id"])
+	fmt.Println(id)
+
+	filter := bson.M{"_id": id}
+
+	collection := connectionmongo.Connect()
+
+	err := collection.FindOne(context.Background(), filter).Decode(&book)
+
+	if err != nil {
+		log.Fatal(err)
 	}
+
+	// for _, item := range books {
+	// 	if item.ID == params["id"] {
+	// 		json.NewEncoder(w).Encode(item)
+	// 		return
+	// 	}
+	// }
+
+	json.NewEncoder(w).Encode(book)
 }
 
 // create a book
@@ -128,7 +120,12 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	// book.ID = strconv.Itoa(rand.Intn(10000000))
 	// books = append(books, book)
 	collection := connectionmongo.Connect()
-	col, _ := collection.InsertOne(context.Background(), newbook)
+	col, err := collection.InsertOne(context.Background(), newbook)
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	json.NewEncoder(w).Encode(col)
 }
 

@@ -33,12 +33,5 @@ func Connect() *mongo.Collection {
 
 	collection = client.Database("go_book").Collection("book")
 
-	// err = client.Disconnect(context.TODO())
-
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println("Connection to MongoDB closed.")
-
 	return collection
 }
